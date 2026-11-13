@@ -1,0 +1,1792 @@
+ <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Demonstração interativa de gestão de estoque, vendas e lucros com dados fictícios.">
+  <title>StockFlow Demo — Estoque &amp; Lucro</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211a;
+      --muted: #788078;
+      --line: #e8ebe6;
+      --surface: #fff;
+      --canvas: #f8faf8;
+      --green: #237b4b;
+      --green-dark: #185e38;
+      --green-pale: #eaf5ee;
+      --red: #c64b42;
+      --red-pale: #fff0ee;
+      --amber: #a8731c;
+      --amber-pale: #fff6e6;
+      --shadow: 0 8px 26px rgb(22 36 25 / 5%);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell { min-height: 100vh; }
+    .sidebar {
+      border-right: 1px solid #e4ece6;
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      display: flex;
+      width: 248px;
+      flex-direction: column;
+      padding: 27px 18px 20px;
+      background: #ffffff;
+      color: var(--ink);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px; }
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      place-items: center;
+      border: 2px solid #237b4b;
+      border-radius: 50%;
+      background: #eaf5ee;
+    }
+    .brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .brand-name { font-size: 15px; font-weight: 730; letter-spacing: -.3px; }
+    .brand-subtitle { color: #69796d; font-size: 11px; }
+    .nav-label { margin: 40px 10px 11px; color: #738276; font-size: 10px; font-weight: 700; letter-spacing: 1.15px; text-transform: uppercase; }
+    .nav-list { display: grid; gap: 7px; }
+    .nav-button {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 12px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #45584b;
+      font-size: 13px;
+      text-align: left;
+      transition: background .16s ease, color .16s ease;
+    }
+    .nav-button:hover { background: #f0f7f1; color: #185e38; }
+    .nav-button.active { background: #e1f2e6; color: #185e38; font-weight: 620; }
+    .nav-icon { display: grid; width: 20px; place-items: center; font-size: 16px; }
+    .nav-lock { font-size: 9px; }
+    .sidebar-bottom { margin-top: auto; padding: 16px 9px 0; border-top: 1px solid #e4ece6; color: #748278; font-size: 11px; }
+    .sidebar-bottom strong { display: block; margin-bottom: 4px; color: #304b38; font-size: 12px; font-weight: 600; }
+    .main-area { min-height: 100vh; margin-left: 248px; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      min-height: 70px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 42px;
+      border-bottom: 1px solid var(--line);
+      background: rgb(255 255 255 / 92%);
+      backdrop-filter: blur(14px);
+    }
+    .breadcrumb { color: var(--muted); font-size: 12px; }
+    .breadcrumb strong { color: var(--ink); font-weight: 620; }
+    .topbar-date { display: flex; align-items: center; gap: 9px; color: #737c73; font-size: 12px; }
+    .topbar-actions { display: flex; align-items: center; gap: 16px; }
+    .topbar-logout[hidden] { display: none; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #55a86d; box-shadow: 0 0 0 3px #e6f4e9; }
+    .content { width: min(1120px, 100%); margin: 0 auto; padding: 34px 42px 54px; }
+    .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
+    .eyebrow { margin-bottom: 5px; color: var(--green); font-size: 10px; font-weight: 750; letter-spacing: 1px; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(24px, 3vw, 29px); font-weight: 700; letter-spacing: -1.05px; line-height: 1.22; }
+    .page-description { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .button {
+      display: inline-flex;
+      min-height: 39px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: var(--green);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+      transition: background .16s ease, transform .16s ease;
+    }
+    .button:hover { transform: translateY(-1px); background: var(--green-dark); }
+    .button.secondary { border-color: var(--line); background: #fff; color: #435047; }
+    .button.secondary:hover { background: #f7f9f6; }
+    .button.danger { border-color: #f3d9d5; background: #fff; color: var(--red); }
+    .button.danger:hover { background: var(--red-pale); }
+    .button.small { min-height: 31px; padding: 0 10px; font-size: 11px; }
+    .month-control { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .month-control select { min-width: 133px; padding: 8px 28px 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 12px; }
+    .finance-period-actions { display: flex; align-items: center; gap: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 19px; }
+    .stat-card, .panel { border: 1px solid var(--line); border-radius: 11px; background: var(--surface); box-shadow: var(--shadow); }
+    .stat-card { min-height: 121px; padding: 16px 17px 15px; }
+    .stat-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #707a71; font-size: 11px; font-weight: 550; }
+    .stat-icon { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 8px; background: #edf5ef; color: #368353; font-size: 14px; }
+    .stat-icon.orange { background: var(--amber-pale); color: var(--amber); }
+    .stat-icon.blue { background: #edf3fa; color: #4a739e; }
+    .stat-icon.red { background: var(--red-pale); color: var(--red); }
+    .stat-value { display: block; margin-top: 10px; font-size: 23px; font-weight: 700; letter-spacing: -.75px; line-height: 1.15; }
+    .stat-caption { margin-top: 4px; color: #8b938b; font-size: 10px; }
+    .stat-card.profit-net .stat-value { color: var(--green-dark); }
+    .stat-card.profit-net.negative .stat-value { color: var(--red); }
+    .panel { overflow: hidden; }
+    .panel + .panel { margin-top: 17px; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 17px 19px 15px; border-bottom: 1px solid #edf0ec; }
+    .panel-title { margin: 0; font-size: 13px; font-weight: 680; letter-spacing: -.15px; }
+    .panel-subtitle { margin: 3px 0 0; color: #8a928b; font-size: 10px; }
+    .panel-content { padding: 16px 19px 19px; }
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 10px 13px; background: #fafbf9; color: #858e85; font-size: 9px; font-weight: 700; letter-spacing: .55px; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 12px 13px; border-top: 1px solid #eef0ed; color: #475149; font-size: 11px; white-space: nowrap; }
+    tbody tr:hover { background: #fbfcfa; }
+    td strong { color: #202c23; font-weight: 620; }
+    .cell-subtle { display: block; margin-top: 2px; color: #929991; font-size: 9px; }
+    .badge { display: inline-flex; min-height: 22px; align-items: center; padding: 0 8px; border-radius: 30px; background: var(--green-pale); color: #37744a; font-size: 9px; font-weight: 650; }
+    .badge.low { background: var(--amber-pale); color: #9a6b1f; }
+    .badge.out { background: var(--red-pale); color: #aa4840; }
+    .row-actions { display: flex; align-items: center; gap: 6px; }
+    .icon-button { display: inline-grid; min-width: 28px; height: 28px; place-items: center; padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: #58635a; font-size: 10px; }
+    .icon-button:hover { border-color: #c9dacc; background: #f1f8f2; color: var(--green-dark); }
+    .icon-button.remove:hover { border-color: #f3d9d5; background: var(--red-pale); color: var(--red); }
+    .empty-state { padding: 32px 16px 29px; color: #808981; text-align: center; }
+    .empty-icon { display: grid; width: 39px; height: 39px; margin: 0 auto 10px; place-items: center; border-radius: 12px; background: #f0f4ef; color: #4d7456; font-size: 17px; }
+    .empty-state strong { display: block; margin-bottom: 3px; color: #354139; font-size: 12px; }
+    .empty-state p { margin: 0 0 12px; font-size: 10px; }
+    .inventory-toolbar { display: flex; align-items: center; gap: 10px; }
+    .search-input { width: 190px; min-height: 35px; padding: 0 11px; border: 1px solid var(--line); border-radius: 7px; outline: none; background: #fff; color: var(--ink); font-size: 11px; }
+    .search-input:focus, input:focus, select:focus { border-color: #8ab797; outline: 3px solid rgb(72 147 91 / 12%); }
+    .inline-field { width: 80px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 5px; background: #fff; text-align: right; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .expense-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .expense-row .field { flex: 1 1 150px; }
+    .expense-list { display: grid; gap: 0; margin-top: 15px; }
+    .expense-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #eef0ed; font-size: 11px; }
+    .expense-meta { color: #899189; font-size: 9px; }
+    .finance-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 15px; padding: 11px 13px; border: 1px solid #e6eee6; border-radius: 8px; background: #f6faf6; color: #607162; font-size: 10px; }
+    .finance-note strong { color: #395844; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 18px; background: rgb(14 23 16 / 48%); }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(450px, 100%); max-height: min(90vh, 760px); overflow-y: auto; padding: 22px; border: 1px solid #ebeee9; border-radius: 13px; background: #fff; box-shadow: 0 24px 70px rgb(0 0 0 / 19%); }
+    .modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+    .modal-heading h2 { margin: 0; font-size: 18px; letter-spacing: -.4px; }
+    .modal-heading p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .modal-close { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: #f2f4f1; color: #515c53; font-size: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: grid; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #4a554c; font-size: 10px; font-weight: 650; }
+    .field input, .field select { width: 100%; min-height: 37px; padding: 0 10px; border: 1px solid #e2e7e1; border-radius: 7px; outline: none; background: #fff; color: #263229; font-size: 11px; }
+    .field-hint { color: #8b948b; font-size: 9px; }
+    .form-error { display: none; margin: 0 0 12px; padding: 9px 11px; border-radius: 7px; background: var(--red-pale); color: #a93e37; font-size: 10px; }
+    .form-error.visible { display: block; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .toast { position: fixed; right: 23px; bottom: 23px; z-index: 20; max-width: min(380px, calc(100vw - 32px)); padding: 11px 15px; transform: translateY(12px); border-radius: 8px; background: #17271c; color: #f5fff6; box-shadow: 0 10px 30px rgb(0 0 0 / 16%); font-size: 11px; opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
+    .toast.visible { transform: translateY(0); opacity: 1; }
+    #app-shell[hidden], #auth-screen[hidden] { display: none !important; }
+    .auth-screen { display: grid; min-height: 100vh; place-items: center; padding: 20px; background: radial-gradient(ellipse at 50% 0%, #e5f5e9 0%, #f7f9f7 65%); }
+    .auth-card { width: min(410px, 100%); padding: 27px; border: 1px solid #dbe9de; border-radius: 15px; background: #ffffff; box-shadow: 0 24px 70px rgb(18 66 34 / 10%); }
+    .auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .auth-brand .brand-mark { width: 42px; height: 42px; }
+    .auth-card h1 { font-size: 22px; letter-spacing: -.5px; }
+    .auth-description { margin: 7px 0 19px; color: #64756a; font-size: 11px; }
+    #auth-form { display: grid; gap: 12px; }
+    .auth-message { margin-bottom: 13px; padding: 10px 12px; border-radius: 7px; background: #fff0ee; color: #a93e37; font-size: 11px; }
+    .auth-warning { margin-top: 16px; padding: 11px; border: 1px solid #ebddb8; border-radius: 8px; background: #fff9eb; color: #75591e; font-size: 10px; }
+    .security-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .security-form .field.full { grid-column: 1 / -1; }
+    .security-current { margin: 0 0 13px; color: #69796d; font-size: 10px; }
+    .security-current strong { color: #244d32; }
+    .security-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+    .catalog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+    .catalog-card { display: flex; min-height: 158px; flex-direction: column; justify-content: space-between; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+    .catalog-card h3 { margin: 0; color: var(--ink); font-size: 13px; font-weight: 650; }
+    .catalog-category { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .catalog-stock { margin-top: 12px; color: var(--muted); font-size: 10px; }
+    .catalog-price { margin-top: 3px; color: var(--green); font-size: 19px; font-weight: 720; letter-spacing: -.4px; }
+    .catalog-card .button { width: 100%; margin-top: 13px; }
+    .day-heading-date { color: #69796d; font-size: 11px; }
+    .daily-table-wrap[hidden], .catalog-grid[hidden] { display: none; }
+    .recipe-components { display: grid; gap: 10px; }
+    .recipe-component { display: grid; grid-template-columns: minmax(145px, 1.5fr) minmax(85px, .7fr) auto minmax(145px, 1.2fr) 30px; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #f7faf7; }
+    .recipe-component select, .recipe-component input[type="number"] { width: 100%; min-height: 34px; padding: 0 8px; border: 1px solid #d7e4d9; border-radius: 6px; background: #fff; color: #263229; font-size: 10px; }
+    .recipe-unit { color: #64756a; font-size: 10px; white-space: nowrap; }
+    .recipe-remaining { display: flex; align-items: center; gap: 5px; color: #435e4a; font-size: 9px; }
+    .recipe-remaining[hidden] { display: none; }
+    .recipe-remaining input { margin: 0; accent-color: var(--green); }
+    .recipe-hint { margin: 0; color: #64756a; font-size: 10px; }
+    .recipe-summary { padding: 10px 12px; border: 1px solid #cde5d4; border-radius: 7px; background: #edf7ef; color: #285d38; font-size: 10px; }
+    .auth-screen { position: fixed; inset: 0; z-index: 15; min-height: 100dvh; overflow-y: auto; }
+    #app-shell[hidden], #auth-screen[hidden] { display: none !important; }
+
+    @media (max-width: 1050px) {
+      .sidebar { width: 212px; }
+      .main-area { margin-left: 212px; }
+      .topbar { padding-right: 26px; padding-left: 26px; }
+      .content { padding-right: 26px; padding-left: 26px; }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .sidebar { position: sticky; inset: 0 0 auto; width: 100%; height: auto; padding: 11px 14px 0; }
+      .brand { padding: 0 3px 10px; }
+      .brand-mark { width: 32px; height: 32px; font-size: 16px; }
+      .brand-name { font-size: 13px; }
+      .nav-label, .sidebar-bottom { display: none; }
+      .nav-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+      .nav-button { justify-content: center; gap: 7px; padding: 9px 7px 11px; border-radius: 8px 8px 0 0; font-size: 11px; }
+      .nav-lock { display: none; }
+      .main-area { margin-left: 0; }
+      .topbar { position: static; min-height: 44px; padding: 0 16px; }
+      .topbar-date { font-size: 10px; }
+      .content { padding: 24px 16px 35px; }
+      .page-heading { align-items: flex-start; gap: 10px; margin-bottom: 19px; }
+      .page-heading .button { min-height: 36px; padding: 0 10px; font-size: 10px; }
+      .page-description { max-width: 300px; font-size: 11px; }
+      .stats-grid { gap: 9px; margin-bottom: 13px; }
+      .stat-card { min-height: 109px; padding: 13px 12px; }
+      .stat-heading { font-size: 10px; }
+      .stat-value { font-size: 19px; }
+      .stat-icon { width: 26px; height: 26px; }
+      .panel-header { padding: 14px 13px; }
+      .panel-content { padding: 13px; }
+      .inventory-toolbar { flex: 1; }
+      .inventory-toolbar .search-input { width: min(180px, 42vw); }
+      .panel-header:has(.inventory-toolbar) { flex-wrap: wrap; }
+      .month-control { font-size: 0; }
+      .month-control select { font-size: 11px; }
+      .finance-heading { flex-wrap: wrap; }
+      .modal { padding: 18px; }
+    }
+    @media (max-width: 390px) {
+      .topbar-date { font-size: 0; }
+      .page-heading { flex-wrap: wrap; }
+      .page-heading .button { margin-left: auto; }
+    }
+    @media (max-width: 520px) {
+      .auth-card { padding: 21px; }
+      .security-form { grid-template-columns: 1fr; }
+      .security-form .field.full { grid-column: auto; }
+      .security-actions { align-items: stretch; flex-direction: column-reverse; }
+      .catalog-grid { grid-template-columns: 1fr; }
+      .recipe-component { grid-template-columns: 1fr 1fr 30px; }
+      .recipe-component select { grid-column: 1 / -1; }
+      .recipe-remaining { grid-column: 1 / 3; }
+    }
+
+    .demo-banner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; margin-bottom:22px; border:1px solid #8fc6a2; border-radius:12px; background:#eaf5ee; color:#185e38; font-size:13px; line-height:1.5; }
+    .demo-banner strong { letter-spacing:.06em; }
+    .demo-banner button { flex-shrink:0; }
+    @media (max-width:650px) { .demo-banner button { width:100%; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><img src="stockflow-logo.svg" alt="Logotipo StockFlow Demo"></div>
+        <div><div class="brand-name">StockFlow Demo</div><div class="brand-subtitle">Estoque &amp; gestão de vendas</div></div>
+      </div>
+      <div class="nav-label">Menu principal</div>
+      <nav class="nav-list" aria-label="Navegação principal">
+        <button class="nav-button active" type="button" data-screen="service"><span class="nav-icon" aria-hidden="true">▣</span>Atendimento</button>
+        <button class="nav-button" type="button" data-screen="inventory"><span class="nav-icon" aria-hidden="true">▦</span>Estoque <span class="nav-lock" aria-label="Acesso com senha">🔒</span></button>
+        <button class="nav-button" type="button" data-screen="finance"><span class="nav-icon" aria-hidden="true">▤</span>Vendas e lucros <span class="nav-lock" aria-label="Acesso com senha">🔒</span></button>
+      </nav>
+      <div class="sidebar-bottom"><strong>Seus dados ficam salvos</strong>As informações são armazenadas neste navegador.</div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumb">StockFlow Demo <span aria-hidden="true">/</span> <strong id="breadcrumb-current">Atendimento</strong></div>
+        <div class="topbar-actions">
+          <div class="topbar-date"><span class="status-dot" aria-hidden="true"></span><span id="today-label"></span></div>
+          <button class="button secondary small topbar-logout" id="topbar-logout" type="button" data-action="logout" hidden>Sair</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="demo-banner" role="note">
+          <span><strong>AMBIENTE DEMONSTRATIVO</strong> · Dados fictícios salvos apenas neste navegador. Sem integração com servidores.</span>
+          <button class="button secondary small" id="reset-demo" type="button">Restaurar demonstração</button>
+        </div>
+        <section class="screen active" id="service-screen" aria-labelledby="service-title">
+          <div class="page-heading">
+            <div>
+              <h1 id="service-title">Vendas do dia</h1>
+              <p class="page-description">Registre vendas rapidamente e acompanhe as movimentações de hoje.</p>
+            </div>
+            <div class="day-heading-date" id="service-date"></div>
+          </div>
+          <div class="stats-grid" id="daily-stats"></div>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Produtos disponíveis</h2><p class="panel-subtitle">Selecione um produto para registrar a venda e atualizar o estoque.</p></div>
+              <input class="search-input" id="service-search" type="search" placeholder="Buscar produto..." aria-label="Buscar produto para venda">
+            </div>
+            <div class="panel-content">
+              <div class="catalog-grid" id="service-products"></div>
+              <div class="empty-state" id="service-empty"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Vendas de hoje</h2><p class="panel-subtitle">Somente as vendas registradas hoje.</p></div>
+            </div>
+            <div class="table-wrap daily-table-wrap" id="daily-activity-wrap">
+              <table>
+                <thead><tr><th>Horário</th><th>Produto</th><th>Quantidade</th><th>Valor</th></tr></thead>
+                <tbody id="daily-activity-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="daily-activity-empty"></div>
+          </section>
+        </section>
+
+        <section class="screen" id="inventory-screen" aria-labelledby="inventory-title">
+          <div class="page-heading">
+            <div>
+              <div class="eyebrow">Visão geral</div>
+              <h1 id="inventory-title">Controle de estoque</h1>
+              <p class="page-description">Cadastre produtos, acompanhe quantidades e registre entradas e saídas.</p>
+            </div>
+            <button class="button" type="button" data-action="add-product"><span aria-hidden="true">＋</span> Adicionar produto</button>
+          </div>
+          <div class="stats-grid" id="inventory-stats"></div>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Produtos cadastrados</h2><p class="panel-subtitle" id="inventory-count"></p></div>
+              <div class="inventory-toolbar">
+                <input class="search-input" id="product-search" type="search" placeholder="Buscar produto..." aria-label="Buscar produto por nome ou categoria">
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Estoque</th><th>Custo unitário de referência</th><th>Preço de venda</th><th>Ações</th></tr></thead>
+                <tbody id="inventory-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="inventory-empty"></div>
+          </section>
+        </section>
+
+        <section class="screen" id="finance-screen" aria-labelledby="finance-title">
+          <div class="page-heading finance-heading">
+            <div>
+              <div class="eyebrow">Acompanhamento mensal</div>
+              <h1 id="finance-title">Vendas e lucros</h1>
+              <p class="page-description">Confira o resultado do mês, registre vendas e acompanhe os produtos.</p>
+            </div>
+            <div class="finance-period-actions">
+              <label class="month-control" for="month-select">Período <select id="month-select" aria-label="Selecionar mês"></select></label>
+              <button class="button secondary small" type="button" data-action="export-month">Baixar histórico</button>
+            </div>
+          </div>
+          <div class="stats-grid" id="finance-stats"></div>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Planilha de produtos</h2><p class="panel-subtitle">Margem por unidade e resultado das vendas no mês selecionado.</p></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>Preço de custo</th><th>Preço de venda</th><th>Lucro por unidade</th><th>Unidades vendidas</th><th>Total bruto</th><th>Ações</th></tr></thead>
+                <tbody id="profit-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="profit-empty"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Vendas do período</h2><p class="panel-subtitle">As vendas também dão baixa automática no estoque.</p></div>
+              <button class="button small" type="button" data-action="add-sale"><span aria-hidden="true">＋</span> Registrar venda</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Data</th><th>Produto</th><th>Quantidade</th><th>Valor unitário</th><th>Total da venda</th><th>Total bruto</th><th>Ações</th></tr></thead>
+                <tbody id="sales-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="sales-empty"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Despesas do período</h2><p class="panel-subtitle">Registre despesas para calcular o lucro líquido do mês.</p></div>
+            </div>
+            <div class="panel-content">
+              <form id="expense-form" class="expense-row">
+                <div class="field"><label for="expense-description">Descrição da despesa</label><input id="expense-description" name="description" placeholder="Ex.: Aluguel, energia, frete" maxlength="80" required></div>
+                <div class="field"><label for="expense-amount">Valor (R$)</label><input id="expense-amount" name="amount" inputmode="decimal" placeholder="0,00" required></div>
+                <div class="field"><label for="expense-date">Data</label><input id="expense-date" name="date" type="date" required></div>
+                <button class="button" type="submit">Adicionar despesa</button>
+              </form>
+              <div class="expense-list" id="expense-list"></div>
+              <div class="finance-note"><span aria-hidden="true">ⓘ</span><span><strong>Como funciona o cálculo:</strong> lucro bruto = vendas − custo dos produtos vendidos. Lucro líquido = lucro bruto − despesas cadastradas. Os valores de venda e custo são guardados no momento de cada venda.</span></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Acesso e segurança</h2><p class="panel-subtitle">Atualize o login e a senha usados para acessar as telas restritas.</p></div>
+            </div>
+            <div class="panel-content">
+              <p class="security-current">Login atual: <strong id="current-username"></strong></p>
+              <form id="security-form" class="security-form">
+                <div class="field full"><label for="current-password">Senha atual *</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required></div>
+                <div class="field"><label for="new-username">Novo login *</label><input id="new-username" name="username" minlength="3" maxlength="32" autocomplete="username" required></div>
+                <div class="field"><label for="new-password">Nova senha *</label><input id="new-password" name="password" type="password" minlength="8" autocomplete="new-password" required><span class="field-hint">Use pelo menos 8 caracteres.</span></div>
+                <div class="field full"><label for="confirm-password">Confirme a nova senha *</label><input id="confirm-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+                <div class="security-actions field full"><button class="button" type="submit">Atualizar login e senha</button></div>
+              </form>
+              <div class="auth-warning">Este acesso é local e não protege os dados contra alguém com acesso ao navegador ou aos arquivos do sistema. Para segurança real, é necessário hospedar o sistema com autenticação em um servidor.</div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <main class="auth-screen" id="auth-screen" hidden>
+    <section class="auth-card" aria-labelledby="auth-title">
+      <div class="auth-brand"><div class="brand-mark"><img src="stockflow-logo.svg" alt="Logotipo StockFlow Demo"></div><div class="brand-name">StockFlow Demo</div></div>
+      <h1 id="auth-title">Acesso ao sistema</h1>
+      <p class="auth-description" id="auth-description"></p>
+      <div class="auth-message" id="auth-message" role="alert" hidden></div>
+      <form id="auth-form" autocomplete="on"></form>
+      <div class="auth-warning">A senha cria um bloqueio local neste navegador. Como os dados ficam no próprio dispositivo, isso não substitui autenticação em servidor.</div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="modal-backdrop" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-heading"><div><h2 id="modal-title"></h2><p id="modal-description"></p></div><button class="modal-close" type="button" data-action="close-modal" aria-label="Fechar">×</button></div>
+      <div class="form-error" id="modal-error" role="alert"></div>
+      <form id="modal-form"></form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "stockflow-demo-data-v1";
+      const DEMO_SEED_KEY = "stockflow-demo-seeded-v1";
+      const AUTH_STORAGE_KEY = "stockflow-demo-auth-v1";
+      const PASSWORD_ITERATIONS = 210000;
+      const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+      const dateFormatter = new Intl.DateTimeFormat("pt-BR");
+      const monthFormatter = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
+      const today = localDateString(new Date());
+      initializeDemoData();
+      let state = loadState();
+      let authRecord = loadAuthRecord();
+      let selectedMonth = today.slice(0, 7);
+      let searchTerm = "";
+      let serviceSearchTerm = "";
+      let pendingScreen = "inventory";
+      let toastTimer;
+
+      function demoSeedState() {
+        const now = localDateTimeString(new Date());
+        const examples = [
+          ["Água mineral 500 ml", "Águas", "un.", 36, 1.25, 3.00],
+          ["Refrigerante cola 2 L", "Refrigerantes", "un.", 18, 6.20, 10.00],
+          ["Refrigerante guaraná 2 L", "Refrigerantes", "un.", 14, 5.70, 9.50],
+          ["Cerveja lager lata 350 ml", "Cervejas", "un.", 48, 3.10, 5.50],
+          ["Energético lata 250 ml", "Energéticos", "un.", 24, 5.50, 9.00],
+          ["Gelo pacote 2 kg", "Outros", "un.", 12, 4.00, 8.00]
+        ];
+        const products = examples.map(([name, category, unit, stock, cost, price], i) => ({
+          id: `demo-prod-${i + 1}`, name, category, unit, stock, cost, price,
+          packageVolumeMl: null,
+          stockLots: [{ id: `demo-lot-${i + 1}`, quantity: stock, unitCost: cost, createdAt: now }]
+        }));
+        return { products, sales: [], expenses: [], stockUpdates: [] };
+      }
+
+      function initializeDemoData() {
+        try {
+          if (localStorage.getItem(DEMO_SEED_KEY)) return;
+          if (!localStorage.getItem(STORAGE_KEY)) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(demoSeedState()));
+          }
+          localStorage.setItem(DEMO_SEED_KEY, "1");
+        } catch (error) { console.warn("Dados iniciais indisponíveis.", error); }
+      }
+
+      function loadAuthRecord() {
+        try {
+          const value = localStorage.getItem(AUTH_STORAGE_KEY);
+          if (!value) return null;
+          const record = JSON.parse(value);
+          if (record && typeof record.username === "string" && typeof record.salt === "string" && typeof record.hash === "string") {
+            return record;
+          }
+          console.error("O cadastro de acesso salvo está inválido.");
+          return null;
+        } catch (error) {
+          console.error("Não foi possível carregar o cadastro de acesso.", error);
+          return null;
+        }
+      }
+
+      function bytesToHex(bytes) {
+        return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+      }
+
+      function hexToBytes(value) {
+        if (!/^(?:[0-9a-f]{2})+$/i.test(value)) throw new Error("Formato de senha inválido.");
+        return new Uint8Array(value.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+      }
+
+      async function hashPassword(password, salt, iterations = PASSWORD_ITERATIONS) {
+        if (!window.crypto || !window.crypto.subtle) throw new Error("Este navegador não oferece suporte ao armazenamento protegido de senha.");
+        const key = await window.crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+        const hash = await window.crypto.subtle.deriveBits({
+          name: "PBKDF2",
+          salt: hexToBytes(salt),
+          iterations,
+          hash: "SHA-256"
+        }, key, 256);
+        return bytesToHex(hash);
+      }
+
+      function showAuthMessage(message) {
+        const element = document.getElementById("auth-message");
+        element.textContent = message;
+        element.hidden = false;
+      }
+
+      function renderAuthGate() {
+        const authScreen = document.getElementById("auth-screen");
+        const form = document.getElementById("auth-form");
+        const isFirstAccess = !authRecord;
+
+        document.getElementById("auth-title").textContent = isFirstAccess ? "Criar acesso" : "Acesso restrito";
+        document.getElementById("auth-description").textContent = isFirstAccess
+          ? "Crie um login e uma senha para acessar Estoque e Vendas e lucros."
+          : `Informe seu login e senha para acessar ${pendingScreen === "inventory" ? "Estoque" : "Vendas e lucros"}.`;
+        document.getElementById("auth-message").hidden = true;
+        form.innerHTML = isFirstAccess
+          ? `<div class="field"><label for="auth-username">Login *</label><input id="auth-username" name="username" minlength="3" maxlength="32" autocomplete="username" required></div>
+             <div class="field"><label for="auth-password">Senha *</label><input id="auth-password" name="password" type="password" minlength="8" autocomplete="new-password" required><span class="field-hint">Use pelo menos 8 caracteres.</span></div>
+             <div class="field"><label for="auth-confirm">Confirme a senha *</label><input id="auth-confirm" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+             <button class="button" type="submit">Criar acesso e continuar</button>
+             <button class="button secondary" type="button" data-action="cancel-auth">Voltar ao atendimento</button>`
+          : `<div class="field"><label for="auth-username">Login *</label><input id="auth-username" name="username" maxlength="32" autocomplete="username" required></div>
+             <div class="field"><label for="auth-password">Senha *</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required></div>
+             <button class="button" type="submit">Entrar</button>
+             <button class="button secondary" type="button" data-action="cancel-auth">Voltar ao atendimento</button>`;
+        form.onsubmit = submitAuthForm;
+        authScreen.hidden = false;
+        const firstInput = form.querySelector("input");
+        if (firstInput) firstInput.focus();
+      }
+
+      async function submitAuthForm(event) {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const username = String(data.get("username") || "").trim();
+        const password = String(data.get("password") || "");
+        const message = document.getElementById("auth-message");
+
+        try {
+          if (!authRecord) {
+            const confirmation = String(data.get("confirmPassword") || "");
+            if (username.length < 3) return showAuthMessage("O login precisa ter pelo menos 3 caracteres.");
+            if (password.length < 8) return showAuthMessage("A senha precisa ter pelo menos 8 caracteres.");
+            if (password !== confirmation) return showAuthMessage("As senhas não conferem.");
+            const salt = bytesToHex(window.crypto.getRandomValues(new Uint8Array(16)));
+            const hash = await hashPassword(password, salt);
+            const record = { username, salt, hash, iterations: PASSWORD_ITERATIONS };
+            try {
+              localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(record));
+            } catch (error) {
+              console.error("Não foi possível salvar o cadastro de acesso.", error);
+              return showAuthMessage("Não foi possível salvar o acesso neste navegador.");
+            }
+            authRecord = record;
+          } else {
+            const matchesUsername = username.toLocaleLowerCase("pt-BR") === authRecord.username.toLocaleLowerCase("pt-BR");
+            const hash = await hashPassword(password, authRecord.salt, authRecord.iterations || PASSWORD_ITERATIONS);
+            if (!matchesUsername || hash !== authRecord.hash) return showAuthMessage("Login ou senha incorretos.");
+          }
+
+          document.getElementById("auth-screen").hidden = true;
+          setScreen(pendingScreen);
+          render();
+        } catch (error) {
+          console.error("Não foi possível validar o acesso.", error);
+          showAuthMessage(error instanceof Error ? error.message : "Não foi possível validar o acesso.");
+        }
+      }
+
+      function localDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function localDateTimeString(date) {
+        return `${localDateString(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+      }
+
+      function loadState() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          const products = Array.isArray(parsed.products) ? parsed.products : [];
+          products.forEach(normalizeProductLots);
+          return {
+            products,
+            sales: Array.isArray(parsed.sales) ? parsed.sales : [],
+            expenses: Array.isArray(parsed.expenses) ? parsed.expenses : [],
+            stockUpdates: Array.isArray(parsed.stockUpdates) ? parsed.stockUpdates : []
+          };
+        } catch (error) {
+          console.error("Não foi possível carregar os dados salvos.", error);
+          return { products: [], sales: [], expenses: [], stockUpdates: [] };
+        }
+      }
+
+      function normalizeProductLots(product) {
+        product.stock = Number.isFinite(Number(product.stock)) && Number(product.stock) >= 0 ? Number(product.stock) : 0;
+        product.cost = Number.isFinite(Number(product.cost)) ? Number(product.cost) : 0;
+        product.price = Number.isFinite(Number(product.price)) ? Number(product.price) : 0;
+        product.packageVolumeMl = Number.isFinite(Number(product.packageVolumeMl)) && Number(product.packageVolumeMl) > 0
+          ? Number(product.packageVolumeMl)
+          : null;
+        if (product.recipe && (
+          !Number.isFinite(Number(product.recipe.servingVolumeMl)) ||
+          !Array.isArray(product.recipe.components)
+        )) product.recipe = null;
+        if (product.recipe) {
+          product.recipe.servingVolumeMl = Number(product.recipe.servingVolumeMl);
+          product.recipe.components = product.recipe.components.filter(component =>
+            component && typeof component.productId === "string" &&
+            (component.remaining || Number.isFinite(Number(component.amount)))
+          ).map(component => ({
+            productId: component.productId,
+            amount: Number(component.amount) || 0,
+            remaining: component.remaining === true
+          }));
+        }
+        if (!Array.isArray(product.stockLots)) {
+          product.stockLots = product.stock > 0
+            ? [{ id: newId(), quantity: product.stock, unitCost: product.cost, createdAt: "0000-00-00T00:00:00" }]
+            : [];
+        } else {
+          product.stockLots = product.stockLots
+            .filter(lot => lot && Number.isFinite(Number(lot.quantity)) && Number(lot.quantity) >= 0 && Number.isFinite(Number(lot.unitCost)))
+            .map(lot => ({
+              id: typeof lot.id === "string" ? lot.id : newId(),
+              quantity: Number(lot.quantity),
+              unitCost: Number(lot.unitCost),
+              createdAt: typeof lot.createdAt === "string" ? lot.createdAt : ""
+            }));
+          const lotQuantity = product.stockLots.reduce((sum, lot) => sum + lot.quantity, 0);
+          if (lotQuantity < product.stock) {
+            product.stockLots.push({
+              id: newId(),
+              quantity: product.stock - lotQuantity,
+              unitCost: product.cost,
+              createdAt: "0000-00-00T00:00:00"
+            });
+          }
+          product.stock = product.stockLots.reduce((sum, lot) => sum + lot.quantity, 0);
+        }
+      }
+
+      function stockLotValue(product) {
+        return product.stockLots.reduce((sum, lot) => sum + lot.quantity * lot.unitCost, 0);
+      }
+
+      function consumeStockLots(product, quantity) {
+        let remaining = roundQuantity(quantity);
+        const breakdown = [];
+        for (const lot of product.stockLots) {
+          if (remaining <= 0) break;
+          if (lot.quantity <= 0) continue;
+          const consumed = roundQuantity(Math.min(lot.quantity, remaining));
+          lot.quantity = roundQuantity(lot.quantity - consumed);
+          remaining = roundQuantity(remaining - consumed);
+          breakdown.push({
+            productId: product.id,
+            productName: product.name,
+            lotId: lot.id,
+            quantity: consumed,
+            unitCost: lot.unitCost,
+            createdAt: lot.createdAt
+          });
+        }
+        if (remaining > 0.0000001) throw new Error(`Lotes de estoque insuficientes para ${product.name}.`);
+        product.stock = roundQuantity(product.stockLots.reduce((sum, lot) => sum + lot.quantity, 0));
+        return breakdown;
+      }
+
+      function roundQuantity(value) {
+        return Math.round((Number(value) + Number.EPSILON) * 100000000) / 100000000;
+      }
+
+      function recipeComponentUsage(recipe, component) {
+        if (component.remaining) {
+          const fixedMl = recipe.components.reduce((sum, item) => {
+            if (item.remaining) return sum;
+            const ingredient = state.products.find(product => product.id === item.productId);
+            return ingredient && ingredient.packageVolumeMl
+              ? sum + Number(item.amount || 0)
+              : sum;
+          }, 0);
+          const ingredient = componentProduct(component);
+          if (!ingredient || !ingredient.packageVolumeMl) return 0;
+          return roundQuantity(Math.max(0, recipe.servingVolumeMl - fixedMl) / ingredient.packageVolumeMl);
+        }
+        const ingredient = componentProduct(component);
+        if (!ingredient) return 0;
+        return roundQuantity(Number(component.amount) / (ingredient && ingredient.packageVolumeMl ? ingredient.packageVolumeMl : 1));
+      }
+
+      function componentProduct(component) {
+        return state.products.find(product => product.id === component.productId);
+      }
+
+      function recipeRequirements(product, servings = 1) {
+        if (!product.recipe) return [];
+        return product.recipe.components.map(component => {
+          const ingredient = componentProduct(component);
+          return {
+            product: ingredient,
+            quantity: roundQuantity(recipeComponentUsage(product.recipe, component) * servings)
+          };
+        }).filter(item => item.product && item.quantity > 0);
+      }
+
+      function availableServings(product) {
+        if (!product.recipe) return Math.floor(product.stock + 0.0000001);
+        const requirements = recipeRequirements(product);
+        if (!requirements.length || requirements.length !== product.recipe.components.length) return 0;
+        return Math.max(0, Math.floor(Math.min(...requirements.map(item =>
+          (item.product.stock + 0.0000001) / item.quantity
+        ))));
+      }
+
+      function componentUnitText(product) {
+        return product && product.packageVolumeMl ? "ml por copo" : `${product && product.unit ? product.unit : "un."} por copo`;
+      }
+
+      function recipeIngredientOptions(product, selectedId) {
+        return state.products
+          .filter(ingredient => ingredient.id !== product.id && !ingredient.recipe)
+          .map(ingredient => `<option value="${escapeHtml(ingredient.id)}" data-volume="${ingredient.packageVolumeMl || ""}" data-unit="${escapeHtml(ingredient.unit || "un.")}" ${ingredient.id === selectedId ? "selected" : ""}>${escapeHtml(ingredient.name)}</option>`)
+          .join("");
+      }
+
+      function addRecipeComponentRow(product, component = {}) {
+        const container = document.getElementById("recipe-components");
+        const ingredient = state.products.find(item => item.id === component.productId);
+        const row = document.createElement("div");
+        row.className = "recipe-component";
+        const options = recipeIngredientOptions(product, component.productId);
+        row.innerHTML = `
+          <select name="ingredientId" aria-label="Ingrediente" required>
+            <option value="">Selecione um produto</option>${options}
+          </select>
+          <input name="amount" type="number" min="0.001" step="0.001" value="${component.remaining ? "" : escapeHtml(component.amount || "")}" placeholder="Quantidade" aria-label="Quantidade por copo" ${component.remaining ? "disabled" : ""}>
+          <span class="recipe-unit">${escapeHtml(componentUnitText(ingredient))}</span>
+          <label class="recipe-remaining" ${ingredient && ingredient.packageVolumeMl ? "" : "hidden"}>
+            <input name="remaining" type="checkbox" ${component.remaining ? "checked" : ""}>
+            Completar o volume
+          </label>
+          <button class="icon-button remove" type="button" data-action="remove-recipe-component" aria-label="Remover ingrediente">×</button>`;
+        container.appendChild(row);
+        updateRecipeComponentRow(row);
+      }
+
+      function updateRecipeComponentRow(row) {
+        const select = row.querySelector('[name="ingredientId"]');
+        const option = select.selectedOptions[0];
+        const volume = Number(option && option.dataset.volume) || 0;
+        const unit = option && option.dataset.unit ? option.dataset.unit : "un.";
+        row.querySelector(".recipe-unit").textContent = volume ? "ml por copo" : `${unit} por copo`;
+        const remainingLabel = row.querySelector(".recipe-remaining");
+        const remainingInput = row.querySelector('[name="remaining"]');
+        remainingLabel.hidden = !volume;
+        if (!volume) remainingInput.checked = false;
+        row.querySelector('[name="amount"]').disabled = remainingInput.checked;
+      }
+
+      function editRecipe(product) {
+        const currentRecipe = product.recipe || { servingVolumeMl: 700, components: [] };
+        const initialComponents = currentRecipe.components.length
+          ? currentRecipe.components
+          : [{ productId: "", amount: "", remaining: false }];
+        openModal("Configurar copo ou receita", `Defina os ingredientes que serão baixados ao vender ${product.name}.`, `
+          <div class="form-grid">
+            <div class="field"><label for="recipe-volume">Volume do copo (ml) *</label><input id="recipe-volume" name="servingVolumeMl" type="number" min="1" step="1" value="${currentRecipe.servingVolumeMl || 700}" required></div>
+            <div class="field"><label>Produto vendido</label><input value="${escapeHtml(product.name)}" readonly></div>
+            <div class="field full"><p class="recipe-hint">Para líquidos, informe o conteúdo em ml por copo. Configure o volume da embalagem no cadastro do ingrediente (por exemplo, uma garrafa de 1 litro = 1.000 ml). Para ingredientes contados, como gelo, informe quantas unidades vão em cada copo.</p></div>
+            <div class="field full"><div class="recipe-components" id="recipe-components"></div></div>
+            <div class="field full"><button class="button secondary small" type="button" data-action="add-recipe-component">＋ Adicionar ingrediente</button></div>
+            <div class="field full"><div class="recipe-summary">Marque “Completar o volume” em um ingrediente líquido para calcular automaticamente o restante do copo. O gelo é contado em unidades e não entra na soma dos ml.</div></div>
+          </div>`, data => {
+          const servingVolumeMl = Number(data.get("servingVolumeMl"));
+          if (!Number.isFinite(servingVolumeMl) || servingVolumeMl <= 0) return "Informe um volume de copo válido.";
+          const rows = [...document.querySelectorAll("#recipe-components .recipe-component")];
+          if (!rows.length) return "Adicione pelo menos um ingrediente à receita.";
+          const components = [];
+          const seen = new Set();
+          for (const row of rows) {
+            const productId = row.querySelector('[name="ingredientId"]').value;
+            const ingredient = state.products.find(item => item.id === productId);
+            const remaining = row.querySelector('[name="remaining"]').checked;
+            const amount = Number(row.querySelector('[name="amount"]').value);
+            if (!ingredient || ingredient.id === product.id || ingredient.recipe) return "Selecione um produto de estoque válido para cada ingrediente.";
+            if (seen.has(ingredient.id)) return `O ingrediente "${ingredient.name}" aparece mais de uma vez. Combine as quantidades em uma linha.`;
+            seen.add(ingredient.id);
+            if (remaining && !ingredient.packageVolumeMl) return `Configure o volume da embalagem de "${ingredient.name}" para completar o copo.`;
+            if (!remaining && (!Number.isFinite(amount) || amount <= 0)) return `Informe a quantidade de "${ingredient.name}" usada em cada copo.`;
+            components.push({ productId, amount: remaining ? 0 : amount, remaining });
+          }
+          const remainingComponents = components.filter(component => component.remaining);
+          if (remainingComponents.length > 1) return "Escolha apenas um ingrediente para completar o volume.";
+          const fixedLiquidMl = components.reduce((sum, component) => {
+            const ingredient = componentProduct(component);
+            return !component.remaining && ingredient.packageVolumeMl ? sum + component.amount : sum;
+          }, 0);
+          if (fixedLiquidMl > servingVolumeMl) return "A soma dos ingredientes líquidos ultrapassa o volume do copo.";
+          if (remainingComponents.length && fixedLiquidMl >= servingVolumeMl) return "Não sobra volume para o ingrediente que completa o copo.";
+          if (!product.recipe && product.stock > 0) return "Este produto ainda tem estoque próprio. Registre a saída dessas unidades antes de transformá-lo em um copo com receita.";
+          if (state.products.some(item => item.recipe && item.recipe.components.some(component => component.productId === product.id))) {
+            return "Este produto já é ingrediente de outra receita e não pode ser transformado em um copo preparado.";
+          }
+
+          const previousRecipe = product.recipe;
+          const previousStock = product.stock;
+          const previousLots = product.stockLots.map(lot => ({ ...lot }));
+          const previousCost = product.cost;
+          product.recipe = { servingVolumeMl, components };
+          product.cost = estimatedRecipeCost(product);
+          if (!saveState()) {
+            product.recipe = previousRecipe;
+            product.stock = previousStock;
+            product.stockLots = previousLots;
+            product.cost = previousCost;
+            return "Não foi possível salvar a receita. Tente novamente.";
+          }
+          showToast("Receita salva. O estoque disponível será calculado pelos ingredientes.");
+          return "";
+        });
+        const form = document.getElementById("modal-form");
+        document.getElementById("recipe-components").dataset.productId = product.id;
+        initialComponents.forEach(component => addRecipeComponentRow(product, component));
+        form.addEventListener("change", event => {
+          const row = event.target.closest(".recipe-component");
+          if (row && (event.target.name === "ingredientId" || event.target.name === "remaining")) updateRecipeComponentRow(row);
+        });
+      }
+
+      function estimatedRecipeCost(product) {
+        return recipeRequirements(product).reduce((total, requirement) => {
+          let remaining = requirement.quantity;
+          let cost = 0;
+          for (const lot of requirement.product.stockLots) {
+            if (remaining <= 0) break;
+            const used = Math.min(remaining, lot.quantity);
+            cost += used * lot.unitCost;
+            remaining = roundQuantity(remaining - used);
+          }
+          if (remaining > 0) cost += remaining * requirement.product.cost;
+          return total + cost;
+        }, 0);
+      }
+
+      function restoreStockBreakdown(breakdown, sale) {
+        for (const consumed of breakdown) {
+          const ingredient = state.products.find(product => product.id === (consumed.productId || sale.productId));
+          if (!ingredient) continue;
+          const lot = ingredient.stockLots.find(item => item.id === consumed.lotId);
+          if (lot) {
+            lot.quantity = roundQuantity(lot.quantity + consumed.quantity);
+          } else {
+            ingredient.stockLots.push({
+              id: consumed.lotId,
+              quantity: consumed.quantity,
+              unitCost: consumed.unitCost,
+              createdAt: consumed.createdAt || sale.createdAt || ""
+            });
+          }
+          ingredient.stock = roundQuantity(ingredient.stockLots.reduce((sum, item) => sum + item.quantity, 0));
+        }
+      }
+
+      function saleCost(sale) {
+        return Number.isFinite(Number(sale.costTotal))
+          ? Number(sale.costTotal)
+          : sale.quantity * Number(sale.unitCost || 0);
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.error("Não foi possível salvar os dados.", error);
+          showToast("Não foi possível salvar. Verifique o espaço disponível no navegador.");
+          return false;
+        }
+        return true;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function money(value) {
+        return currency.format(Number(value) || 0);
+      }
+
+      function formatQuantity(value) {
+        return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(Number(value) || 0);
+      }
+
+      function dateLabel(value) {
+        if (!value) return "—";
+        const [year, month, day] = value.split("-").map(Number);
+        return dateFormatter.format(new Date(year, month - 1, day));
+      }
+
+      function parseAmount(value) {
+        const normalized = String(value).trim().replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+        const result = Number(normalized);
+        return Number.isFinite(result) ? result : NaN;
+      }
+
+      function newId() {
+        return window.crypto && typeof window.crypto.randomUUID === "function"
+          ? window.crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.classList.add("visible");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 2800);
+      }
+
+      function currentMonthSales() {
+        return state.sales.filter(sale => sale.date.startsWith(selectedMonth));
+      }
+
+      function currentMonthExpenses() {
+        return state.expenses.filter(expense => expense.date.startsWith(selectedMonth));
+      }
+
+      function productName(productId) {
+        const product = state.products.find(item => item.id === productId);
+        return product ? product.name : "Produto removido";
+      }
+
+      function emptyState(icon, title, description, buttonLabel, action) {
+        return `<div class="empty-icon" aria-hidden="true">${icon}</div><strong>${title}</strong><p>${description}</p>${buttonLabel ? `<button class="button secondary small" type="button" data-action="${action}">${buttonLabel}</button>` : ""}`;
+      }
+
+      function renderInventory() {
+        const totalUnits = state.products.reduce((sum, product) => sum + product.stock, 0);
+        const totalCost = state.products.reduce((sum, product) => sum + stockLotValue(product), 0);
+        const lowStock = state.products.filter(product => product.stock > 0 && product.stock <= 5).length;
+        document.getElementById("inventory-stats").innerHTML = [
+          statCard("Produtos cadastrados", state.products.length, "Itens diferentes no catálogo", "▦", ""),
+          statCard("Unidades em estoque", totalUnits, "Quantidade disponível para venda", "▤", "blue"),
+          statCard("Estoque baixo", lowStock, "Produtos com 5 unidades ou menos", "△", "orange"),
+          statCard("Valor em estoque", money(totalCost), "Custo estimado das unidades disponíveis", "R$", "")
+        ].join("");
+
+        const filtered = state.products.filter(product =>
+          `${product.name} ${product.category}`.toLocaleLowerCase("pt-BR").includes(searchTerm.toLocaleLowerCase("pt-BR"))
+        );
+        document.getElementById("inventory-count").textContent =
+          `${state.products.length} ${state.products.length === 1 ? "produto cadastrado" : "produtos cadastrados"}`;
+        document.getElementById("inventory-body").innerHTML = filtered.map(product => {
+          const stockCount = product.recipe ? availableServings(product) : product.stock;
+          const stockClass = stockCount === 0 ? "out" : stockCount <= 5 ? "low" : "";
+          const stockLabel = product.recipe ? "Receita ativa" : product.stock === 0 ? "Sem estoque" : product.stock <= 5 ? "Estoque baixo" : "Disponível";
+          return `<tr>
+            <td><strong>${escapeHtml(product.name)}</strong><span class="cell-subtle">${escapeHtml(product.unit || "unidade")}</span></td>
+            <td>${escapeHtml(product.category || "Sem categoria")}</td>
+            <td><strong>${formatQuantity(stockCount)}</strong> ${escapeHtml(product.recipe ? (product.unit || "copos") : (product.unit || "un."))}</td>
+            <td><span class="badge ${stockClass}">${stockLabel}</span></td>
+            <td>${money(product.recipe ? estimatedRecipeCost(product) : product.cost)}${product.recipe ? '<span class="cell-subtle">custo estimado por copo</span>' : product.packageVolumeMl ? `<span class="cell-subtle">${formatQuantity(product.packageVolumeMl)} ml por embalagem</span>` : ""}</td>
+            <td>${money(product.price)}</td>
+            <td><div class="row-actions">
+              ${product.recipe ? "" : `<button class="icon-button" type="button" data-action="stock-in" data-id="${escapeHtml(product.id)}" aria-label="Adicionar estoque para ${escapeHtml(product.name)}" title="Adicionar estoque">＋ Estoque</button>
+              <button class="icon-button" type="button" data-action="stock-out" data-id="${escapeHtml(product.id)}" aria-label="Registrar saída de ${escapeHtml(product.name)}" title="Registrar saída">− Saída</button>`}
+              <button class="icon-button" type="button" data-action="edit-product" data-id="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}" title="Editar produto">Editar</button>
+              <button class="icon-button" type="button" data-action="edit-recipe" data-id="${escapeHtml(product.id)}" aria-label="Configurar receita de ${escapeHtml(product.name)}" title="Configurar copo/receita">${product.recipe ? "Receita ✓" : "Configurar copo"}</button>
+              <button class="icon-button remove" type="button" data-action="delete-product" data-id="${escapeHtml(product.id)}" aria-label="Excluir ${escapeHtml(product.name)}" title="Excluir produto">×</button>
+            </div></td>
+          </tr>`;
+        }).join("");
+
+        const empty = document.getElementById("inventory-empty");
+        const table = document.querySelector("#inventory-screen .table-wrap");
+        if (!state.products.length) {
+          table.hidden = true;
+          empty.hidden = false;
+          empty.innerHTML = emptyState("▦", "Seu estoque começa aqui", "Cadastre seus produtos para acompanhar as quantidades e os preços.", "Adicionar primeiro produto", "add-product");
+        } else if (!filtered.length) {
+          table.hidden = true;
+          empty.hidden = false;
+          empty.innerHTML = emptyState("⌕", "Nenhum produto encontrado", "Tente buscar por outro nome ou categoria.", "", "");
+        } else {
+          table.hidden = false;
+          empty.hidden = true;
+        }
+      }
+
+      function renderService() {
+        const sales = state.sales.filter(sale => sale.date === today);
+        const revenue = sales.reduce((sum, sale) => sum + sale.quantity * sale.unitPrice, 0);
+        const unitsSold = sales.reduce((sum, sale) => sum + sale.quantity, 0);
+        const available = state.products.filter(product => availableServings(product) > 0).length;
+        const dateText = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+        document.getElementById("service-date").textContent = dateText.charAt(0).toLocaleUpperCase("pt-BR") + dateText.slice(1);
+        document.getElementById("daily-stats").innerHTML = [
+          statCard("Vendas de hoje", money(revenue), `${sales.length} ${sales.length === 1 ? "venda registrada" : "vendas registradas"}`, "↗", "blue"),
+          statCard("Unidades vendidas", unitsSold, "Unidades registradas hoje", "▤", ""),
+          statCard("Produtos disponíveis", available, "Produtos com estoque para venda", "▦", "orange"),
+          statCard("Itens no catálogo", state.products.length, "Produtos cadastrados no sistema", "＋", "")
+        ].join("");
+
+        const filteredProducts = state.products.filter(product =>
+          `${product.name} ${product.category || ""}`.toLocaleLowerCase("pt-BR").includes(serviceSearchTerm.toLocaleLowerCase("pt-BR"))
+        );
+        document.getElementById("service-products").innerHTML = filteredProducts.map(product =>
+          `<article class="catalog-card">
+            <div>
+              <h3>${escapeHtml(product.name)}</h3>
+              <div class="catalog-category">${escapeHtml(product.category || "Sem categoria")}</div>
+              <div class="catalog-stock">${availableServings(product) > 0 ? `${availableServings(product)} ${escapeHtml(product.recipe ? (product.unit || "copos") : (product.unit || "un."))} disponíveis` : "Sem estoque dos ingredientes"}</div>
+              <div class="catalog-price">${money(product.price)}</div>
+            </div>
+            <button class="button" type="button" data-action="service-sell" data-id="${escapeHtml(product.id)}" ${availableServings(product) <= 0 ? "disabled" : ""}>${availableServings(product) > 0 ? "Registrar venda" : "Indisponível"}</button>
+          </article>`
+        ).join("");
+
+        const productGrid = document.getElementById("service-products");
+        const productEmpty = document.getElementById("service-empty");
+        if (!state.products.length) {
+          productGrid.hidden = true;
+          productEmpty.hidden = false;
+          productEmpty.innerHTML = emptyState("▦", "Nenhum produto cadastrado", "Peça ao responsável para cadastrar os produtos na tela de Estoque.", "", "");
+        } else if (!filteredProducts.length) {
+          productGrid.hidden = true;
+          productEmpty.hidden = false;
+          productEmpty.innerHTML = emptyState("⌕", "Nenhum produto encontrado", "Tente buscar por outro nome ou categoria.", "", "");
+        } else {
+          productGrid.hidden = false;
+          productEmpty.hidden = true;
+        }
+
+        const activities = [
+          ...sales.map(sale => ({
+            id: sale.id,
+            createdAt: sale.createdAt || `${sale.date}T00:00:00`,
+            name: sale.productName || productName(sale.productId),
+            unit: sale.unit || (state.products.find(product => product.id === sale.productId)?.unit || "un."),
+            quantity: sale.quantity,
+            amount: money(sale.quantity * sale.unitPrice)
+          }))
+        ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        document.getElementById("daily-activity-body").innerHTML = activities.map(activity =>
+          `<tr><td>${escapeHtml(activity.createdAt.includes("T") ? activity.createdAt.slice(11, 16) : "—")}</td>
+          <td><strong>${escapeHtml(activity.name)}</strong></td><td>${activity.quantity} ${escapeHtml(activity.unit)}</td><td>${activity.amount}</td></tr>`
+        ).join("");
+        document.getElementById("daily-activity-wrap").hidden = !activities.length;
+        const activityEmpty = document.getElementById("daily-activity-empty");
+        activityEmpty.hidden = !!activities.length;
+        if (!activities.length) {
+          activityEmpty.innerHTML = emptyState("↗", "Nenhuma venda hoje", "As vendas registradas aparecerão aqui.", "", "");
+        }
+      }
+
+      function statCard(label, value, caption, icon, variant, extraClass) {
+        return `<article class="stat-card ${extraClass || ""}"><div class="stat-heading">${label}<span class="stat-icon ${variant}">${icon}</span></div><strong class="stat-value">${value}</strong><div class="stat-caption">${caption}</div></article>`;
+      }
+
+      function renderFinance() {
+        const sales = currentMonthSales();
+        const expenses = currentMonthExpenses();
+        const revenue = sales.reduce((sum, sale) => sum + sale.quantity * sale.unitPrice, 0);
+        const cost = sales.reduce((sum, sale) => sum + saleCost(sale), 0);
+        const grossProfit = revenue - cost;
+        const expenseTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const netProfit = grossProfit - expenseTotal;
+        const monthText = monthFormatter.format(new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)) - 1, 1));
+
+        document.getElementById("finance-stats").innerHTML = [
+          statCard("Vendas no mês", money(revenue), `${sales.length} ${sales.length === 1 ? "venda registrada" : "vendas registradas"}`, "↗", "blue"),
+          statCard("Total bruto", money(grossProfit), "Vendas menos custo dos produtos vendidos", "＋", ""),
+          statCard("Despesas", money(expenseTotal), `${expenses.length} ${expenses.length === 1 ? "despesa lançada" : "despesas lançadas"}`, "−", "orange"),
+          statCard("Lucro líquido", money(netProfit), "Lucro bruto menos despesas", "＝", netProfit < 0 ? "red" : "", `profit-net ${netProfit < 0 ? "negative" : ""}`)
+        ].join("");
+
+        document.getElementById("profit-body").innerHTML = state.products.map(product => {
+          const productSales = sales.filter(sale => sale.productId === product.id);
+          const quantity = productSales.reduce((sum, sale) => sum + sale.quantity, 0);
+          const productGross = productSales.reduce((sum, sale) => sum + sale.quantity * sale.unitPrice - saleCost(sale), 0);
+          const unitCost = product.recipe ? estimatedRecipeCost(product) : product.cost;
+          return `<tr>
+            <td><strong>${escapeHtml(product.name)}</strong></td>
+            <td>${money(unitCost)}</td><td>${money(product.price)}</td>
+            <td><strong>${money(product.price - unitCost)}</strong></td>
+            <td>${quantity} ${escapeHtml(product.recipe ? (product.unit || "copos") : "un.")}</td><td><strong>${money(productGross)}</strong></td>
+            <td><button class="icon-button" type="button" data-action="edit-product" data-id="${escapeHtml(product.id)}">Editar preços</button></td>
+          </tr>`;
+        }).join("");
+        const profitTable = document.querySelector("#finance-screen .panel .table-wrap");
+        const profitEmpty = document.getElementById("profit-empty");
+        if (!state.products.length) {
+          profitTable.hidden = true;
+          profitEmpty.hidden = false;
+          profitEmpty.innerHTML = emptyState("▤", "Cadastre os produtos primeiro", "Os custos, preços de venda e margens aparecem aqui.", "Adicionar produto", "add-product");
+        } else {
+          profitTable.hidden = false;
+          profitEmpty.hidden = true;
+        }
+
+        document.getElementById("sales-body").innerHTML = [...sales].sort((a, b) => b.date.localeCompare(a.date)).map(sale =>
+          `<tr><td>${dateLabel(sale.date)}</td><td><strong>${escapeHtml(sale.productName || productName(sale.productId))}</strong></td>
+          <td>${sale.quantity} ${escapeHtml(sale.unit || "un.")}</td><td>${money(sale.unitPrice)}</td>
+          <td><strong>${money(sale.quantity * sale.unitPrice)}</strong></td>
+          <td><strong>${money(sale.quantity * sale.unitPrice - saleCost(sale))}</strong></td>
+          <td><button class="icon-button remove" type="button" data-action="delete-sale" data-id="${escapeHtml(sale.id)}">Desfazer</button></td></tr>`
+        ).join("");
+        const salesTable = document.querySelectorAll("#finance-screen .table-wrap")[1];
+        const salesEmpty = document.getElementById("sales-empty");
+        salesTable.hidden = !sales.length;
+        salesEmpty.hidden = !!sales.length;
+        if (!sales.length) salesEmpty.innerHTML = emptyState("↗", `Nenhuma venda em ${monthText}`, "Registre uma venda para atualizar o caixa e dar baixa no estoque.", "Registrar primeira venda", "add-sale");
+
+        document.getElementById("expense-list").innerHTML = expenses.length
+          ? [...expenses].sort((a, b) => b.date.localeCompare(a.date)).map(expense =>
+            `<div class="expense-item"><div><strong>${escapeHtml(expense.description)}</strong><div class="expense-meta">${dateLabel(expense.date)}</div></div><div class="row-actions"><strong>${money(expense.amount)}</strong><button class="icon-button remove" type="button" data-action="delete-expense" data-id="${escapeHtml(expense.id)}" aria-label="Excluir despesa ${escapeHtml(expense.description)}">×</button></div></div>`
+          ).join("")
+          : `<div class="expense-meta" style="padding-top:12px">Nenhuma despesa registrada para ${monthText}.</div>`;
+        document.getElementById("current-username").textContent = authRecord ? authRecord.username : "";
+      }
+
+      function renderMonthOptions() {
+        const select = document.getElementById("month-select");
+        const months = new Set([selectedMonth]);
+        state.sales.forEach(sale => months.add(sale.date.slice(0, 7)));
+        state.expenses.forEach(expense => months.add(expense.date.slice(0, 7)));
+        [...months].sort().reverse();
+        select.innerHTML = [...months].sort().reverse().map(month => {
+          const [year, monthNumber] = month.split("-").map(Number);
+          const label = monthFormatter.format(new Date(year, monthNumber - 1, 1));
+          return `<option value="${month}">${label.charAt(0).toLocaleUpperCase("pt-BR")}${label.slice(1)}</option>`;
+        }).join("");
+        select.value = selectedMonth;
+      }
+
+      function exportMonthlyReport() {
+        const sales = [...currentMonthSales()].sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || "").localeCompare(b.createdAt || ""));
+        const expenses = [...currentMonthExpenses()].sort((a, b) => a.date.localeCompare(b.date));
+        const revenue = sales.reduce((sum, sale) => sum + sale.quantity * sale.unitPrice, 0);
+        const cost = sales.reduce((sum, sale) => sum + saleCost(sale), 0);
+        const grossProfit = revenue - cost;
+        const expenseTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const netProfit = grossProfit - expenseTotal;
+        const monthText = monthFormatter.format(new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)) - 1, 1));
+        const productResults = new Map();
+
+        for (const sale of sales) {
+          const key = sale.productId || sale.productName || "produto";
+          const result = productResults.get(key) || {
+            name: sale.productName || productName(sale.productId),
+            quantity: 0,
+            revenue: 0,
+            cost: 0
+          };
+          result.quantity += sale.quantity;
+          result.revenue += sale.quantity * sale.unitPrice;
+          result.cost += saleCost(sale);
+          productResults.set(key, result);
+        }
+
+        const lines = [
+          `STOCKFLOW DEMO — RELATÓRIO MENSAL`,
+          `Período: ${monthText.charAt(0).toLocaleUpperCase("pt-BR")}${monthText.slice(1)}`,
+          "",
+          "RESUMO DO MÊS",
+          `Vendas: ${money(revenue)} (${sales.length} ${sales.length === 1 ? "venda" : "vendas"})`,
+          `Custo dos produtos vendidos: ${money(cost)}`,
+          `Total bruto: ${money(grossProfit)}`,
+          `Despesas: ${money(expenseTotal)}`,
+          `Lucro líquido: ${money(netProfit)}`,
+          "",
+          "RESULTADO POR PRODUTO",
+          "Produto | Quantidade | Vendas | Custo | Total bruto"
+        ];
+
+        if (productResults.size) {
+          for (const result of productResults.values()) {
+            lines.push(`${result.name} | ${result.quantity} | ${money(result.revenue)} | ${money(result.cost)} | ${money(result.revenue - result.cost)}`);
+          }
+        } else {
+          lines.push("Nenhuma venda registrada no período.");
+        }
+
+        lines.push("", "VENDAS DETALHADAS", "Data | Produto | Quantidade | Valor unitário | Total da venda | Custo | Total bruto");
+        if (sales.length) {
+          for (const sale of sales) {
+            const saleRevenue = sale.quantity * sale.unitPrice;
+            const saleProductCost = saleCost(sale);
+            lines.push(`${dateLabel(sale.date)} | ${sale.productName || productName(sale.productId)} | ${sale.quantity} ${sale.unit || "un."} | ${money(sale.unitPrice)} | ${money(saleRevenue)} | ${money(saleProductCost)} | ${money(saleRevenue - saleProductCost)}`);
+          }
+        } else {
+          lines.push("Nenhuma venda registrada no período.");
+        }
+
+        lines.push("", "DESPESAS");
+        if (expenses.length) {
+          for (const expense of expenses) lines.push(`${dateLabel(expense.date)} | ${expense.description} | ${money(expense.amount)}`);
+        } else {
+          lines.push("Nenhuma despesa registrada no período.");
+        }
+
+        try {
+          const blob = new Blob(["\uFEFF", lines.join("\r\n")], { type: "text/plain;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `stockflow-demo-relatorio-${selectedMonth}.txt`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("Relatório mensal salvo em arquivo TXT.");
+        } catch (error) {
+          console.error("Não foi possível exportar o relatório mensal.", error);
+          showToast("Não foi possível salvar o relatório. Tente novamente.");
+        }
+      }
+
+      function render() {
+        renderService();
+        renderInventory();
+        renderMonthOptions();
+        renderFinance();
+        document.getElementById("today-label").textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "numeric", month: "short" }).format(new Date());
+      }
+
+      function setScreen(screenName) {
+        document.querySelectorAll(".screen").forEach(screen => screen.classList.toggle("active", screen.id === `${screenName}-screen`));
+        document.querySelectorAll(".nav-button").forEach(button => button.classList.toggle("active", button.dataset.screen === screenName));
+        const labels = { service: "Atendimento", inventory: "Estoque", finance: "Vendas e lucros" };
+        document.getElementById("breadcrumb-current").textContent = labels[screenName];
+        document.getElementById("topbar-logout").hidden = screenName === "service";
+      }
+
+      function requestScreen(screenName) {
+        if (screenName === "service") {
+          document.getElementById("auth-screen").hidden = true;
+          setScreen("service");
+          renderService();
+          return;
+        }
+        if (screenName !== "inventory" && screenName !== "finance") return;
+        if (document.getElementById(`${screenName}-screen`).classList.contains("active")) return;
+        pendingScreen = screenName;
+        renderAuthGate();
+      }
+
+      function openModal(title, description, formMarkup, onSubmit) {
+        const backdrop = document.getElementById("modal-backdrop");
+        const form = document.getElementById("modal-form");
+        document.getElementById("modal-title").textContent = title;
+        document.getElementById("modal-description").textContent = description;
+        document.getElementById("modal-error").classList.remove("visible");
+        form.innerHTML = `${formMarkup}<div class="modal-actions"><button class="button secondary" type="button" data-action="close-modal">Cancelar</button><button class="button" type="submit">Salvar</button></div>`;
+        backdrop.classList.add("open");
+        const firstInput = form.querySelector("input, select");
+        if (firstInput) firstInput.focus();
+        form.onsubmit = event => {
+          event.preventDefault();
+          const error = onSubmit(new FormData(form));
+          if (error) {
+            const errorElement = document.getElementById("modal-error");
+            errorElement.textContent = error;
+            errorElement.classList.add("visible");
+            return;
+          }
+          backdrop.classList.remove("open");
+          render();
+        };
+      }
+
+      function closeModal() {
+        document.getElementById("modal-backdrop").classList.remove("open");
+      }
+
+      async function updateCredentials(event) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const currentPassword = String(data.get("currentPassword") || "");
+        const username = String(data.get("username") || "").trim();
+        const password = String(data.get("password") || "");
+        const confirmation = String(data.get("confirmPassword") || "");
+
+        try {
+          if (!authRecord || await hashPassword(currentPassword, authRecord.salt, authRecord.iterations || PASSWORD_ITERATIONS) !== authRecord.hash) {
+            showToast("A senha atual está incorreta.");
+            return;
+          }
+          if (username.length < 3) {
+            showToast("O novo login precisa ter pelo menos 3 caracteres.");
+            return;
+          }
+          if (password.length < 8) {
+            showToast("A nova senha precisa ter pelo menos 8 caracteres.");
+            return;
+          }
+          if (password !== confirmation) {
+            showToast("A confirmação da nova senha não confere.");
+            return;
+          }
+
+          const salt = bytesToHex(window.crypto.getRandomValues(new Uint8Array(16)));
+          const updatedRecord = { username, salt, hash: await hashPassword(password, salt), iterations: PASSWORD_ITERATIONS };
+          try {
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedRecord));
+          } catch (error) {
+            console.error("Não foi possível atualizar o cadastro de acesso.", error);
+            showToast("Não foi possível salvar as novas credenciais.");
+            return;
+          }
+          authRecord = updatedRecord;
+          form.reset();
+          renderFinance();
+          showToast("Login e senha atualizados.");
+        } catch (error) {
+          console.error("Não foi possível atualizar o acesso.", error);
+          showToast(error instanceof Error ? error.message : "Não foi possível atualizar o acesso.");
+        }
+      }
+
+      function logout() {
+        requestScreen("service");
+      }
+
+      function addProduct(product) {
+        openModal("Adicionar produto", "Informe os dados para começar a controlar este item.", `
+          <div class="form-grid">
+            <div class="field full"><label for="product-name">Nome do produto *</label><input id="product-name" name="name" maxlength="70" placeholder="Ex.: Cerveja Pilsen 600 ml" value="${product ? escapeHtml(product.name) : ""}" required></div>
+            <div class="field"><label for="product-category">Categoria</label><input id="product-category" name="category" maxlength="40" placeholder="Ex.: Cervejas" value="${product ? escapeHtml(product.category || "") : ""}"></div>
+            <div class="field"><label for="product-unit">Unidade</label><input id="product-unit" name="unit" maxlength="12" value="${product ? escapeHtml(product.unit || "un.") : "un."}" placeholder="un., cx., lata..."></div>
+            <div class="field"><label for="product-package-volume">Conteúdo por unidade de estoque (ml)</label><input id="product-package-volume" name="packageVolumeMl" type="number" min="1" step="1" placeholder="Ex.: 1000 para uma garrafa de 1 litro" value="${product && product.packageVolumeMl ? product.packageVolumeMl : ""}"><span class="field-hint">Preencha para bebidas em garrafas ou latas usadas em receitas.</span></div>
+            <div class="field"><label for="product-stock">${product ? "Estoque atual" : "Quantidade inicial *"}</label><input id="product-stock" name="stock" type="number" min="0" step="1" value="${product ? product.stock : ""}" ${product ? "readonly" : "required"}></div>
+            <div class="field"><label for="product-cost">${product ? "Custo unitário de referência (R$) *" : "Custo unitário inicial (R$) *"}</label><input id="product-cost" name="cost" inputmode="decimal" placeholder="0,00" value="${product ? product.cost.toFixed(2).replace(".", ",") : ""}" required>${product ? '<span class="field-hint">Alterar este valor não muda o custo dos lotes já existentes.</span>' : ""}</div>
+            <div class="field full"><label for="product-price">Preço de venda (R$) *</label><input id="product-price" name="price" inputmode="decimal" placeholder="0,00" value="${product ? product.price.toFixed(2).replace(".", ",") : ""}" required></div>
+          </div>`, data => {
+          const name = String(data.get("name") || "").trim();
+          const stock = product ? product.stock : Number(data.get("stock"));
+          const cost = parseAmount(data.get("cost"));
+          const price = parseAmount(data.get("price"));
+          const packageVolumeText = String(data.get("packageVolumeMl") || "").trim();
+          const packageVolumeMl = packageVolumeText ? Number(packageVolumeText) : null;
+          if (!name) return "Informe o nome do produto.";
+          if (!Number.isInteger(stock) || stock < 0) return "Informe uma quantidade válida em unidades inteiras.";
+          if (!Number.isFinite(cost) || cost < 0 || !Number.isFinite(price) || price < 0) return "Informe valores de custo e venda válidos.";
+          if (packageVolumeText && (!Number.isInteger(packageVolumeMl) || packageVolumeMl <= 0)) return "Informe um conteúdo válido em ml para a embalagem.";
+          if (product && product.stock > 0 && product.packageVolumeMl && product.packageVolumeMl !== packageVolumeMl) return "Não altere o conteúdo da embalagem enquanto houver estoque. Cadastre outra apresentação como um produto separado.";
+          const category = String(data.get("category") || "").trim();
+          const unit = String(data.get("unit") || "").trim() || "un.";
+          const previousProduct = product ? { ...product, stockLots: product.stockLots.map(lot => ({ ...lot })) } : null;
+          let addedProduct = null;
+          let stockUpdate = null;
+          if (product) {
+            product.name = name;
+            product.category = category;
+            product.unit = unit;
+            product.cost = cost;
+            product.price = price;
+            product.packageVolumeMl = packageVolumeMl;
+          } else {
+            const lots = stock > 0 ? [{ id: newId(), quantity: stock, unitCost: cost, createdAt: localDateTimeString(new Date()) }] : [];
+            addedProduct = { id: newId(), name, category, unit, stock, cost, price, packageVolumeMl, stockLots: lots };
+            state.products.push(addedProduct);
+          }
+          const stockDifference = product ? 0 : stock;
+          if (stockDifference !== 0) {
+            stockUpdate = {
+              id: newId(),
+              productId: product ? product.id : addedProduct.id,
+              productName: name,
+              quantity: Math.abs(stockDifference),
+              type: stockDifference > 0 ? "Entrada de estoque" : "Saída de estoque",
+              date: today,
+              createdAt: localDateTimeString(new Date())
+            };
+            state.stockUpdates.push(stockUpdate);
+          }
+          if (!saveState()) {
+            if (previousProduct) Object.assign(product, previousProduct);
+            if (addedProduct) state.products = state.products.filter(item => item.id !== addedProduct.id);
+            if (stockUpdate) state.stockUpdates = state.stockUpdates.filter(item => item.id !== stockUpdate.id);
+            return "Não foi possível salvar o produto. Tente novamente.";
+          }
+          showToast(product ? "Produto atualizado." : "Produto cadastrado.");
+          return "";
+        });
+      }
+
+      function adjustStock(product, direction) {
+        const entering = direction === "in";
+        openModal(entering ? "Adicionar ao estoque" : "Retirar do estoque", `${product.name} · saldo atual: ${product.stock} ${product.unit || "un."}`, `
+          <div class="form-grid">
+            <div class="field"><label for="stock-quantity">Quantidade *</label><input id="stock-quantity" name="quantity" type="number" min="1" step="1" placeholder="0" required></div>
+            ${entering ? `<div class="field full"><label for="stock-unit-cost">Custo por unidade desta entrada (R$) *</label><input id="stock-unit-cost" name="unitCost" inputmode="decimal" value="${product.cost.toFixed(2).replace(".", ",")}" required><span class="field-hint">O novo custo fica associado somente às unidades desta entrada.</span></div>` : ""}
+            <div class="field"><label for="stock-note">Observação</label><input id="stock-note" name="note" maxlength="50" placeholder="${entering ? "Reposição" : "Perda ou consumo"}"></div>
+          </div>`, data => {
+          const quantity = Number(data.get("quantity"));
+          if (!Number.isInteger(quantity) || quantity <= 0) return "Informe uma quantidade inteira maior que zero.";
+          if (!entering && quantity > product.stock) return `Há apenas ${product.stock} unidade(s) disponível(is).`;
+          const previousStock = product.stock;
+          const previousCost = product.cost;
+          const previousLots = product.stockLots.map(lot => ({ ...lot }));
+          const unitCost = entering ? parseAmount(data.get("unitCost")) : null;
+          if (entering && (!Number.isFinite(unitCost) || unitCost < 0)) return "Informe um custo unitário válido para esta entrada.";
+          let costBreakdown = [];
+          if (entering) {
+            product.stockLots.push({
+              id: newId(),
+              quantity,
+              unitCost,
+              createdAt: localDateTimeString(new Date())
+            });
+            product.cost = unitCost;
+            product.stock += quantity;
+          } else {
+            try {
+              costBreakdown = consumeStockLots(product, quantity);
+            } catch (error) {
+              console.error("Não foi possível registrar a saída de estoque.", error);
+              return error instanceof Error ? error.message : "Não foi possível registrar a saída.";
+            }
+          }
+          const update = {
+            id: newId(),
+            productId: product.id,
+            productName: product.name,
+            quantity,
+            unitCost,
+            costBreakdown,
+            note: String(data.get("note") || "").trim(),
+            type: entering ? "Entrada de estoque" : "Saída de estoque",
+            date: today,
+            createdAt: localDateTimeString(new Date())
+          };
+          state.stockUpdates.push(update);
+          if (!saveState()) {
+            product.stock = previousStock;
+            product.cost = previousCost;
+            product.stockLots = previousLots;
+            state.stockUpdates = state.stockUpdates.filter(item => item.id !== update.id);
+            return "Não foi possível salvar a alteração. Tente novamente.";
+          }
+          render();
+          renderService();
+          showToast(entering ? "Entrada adicionada ao estoque." : "Saída registrada no estoque.");
+          return "";
+        });
+      }
+
+      function addSale(initialProductId) {
+        if (!state.products.length) {
+          showToast("Cadastre um produto antes de registrar uma venda.");
+          requestScreen("inventory");
+          return;
+        }
+        const productsWithStock = state.products.filter(product => availableServings(product) > 0);
+        if (!productsWithStock.length) {
+          showToast("Não há produtos ou ingredientes com estoque disponível.");
+          requestScreen("inventory");
+          return;
+        }
+        const selectedProduct = productsWithStock.find(product => product.id === initialProductId) || productsWithStock[0];
+        openModal("Registrar venda", "O estoque será atualizado automaticamente ao salvar.", `
+          <div class="form-grid">
+            <div class="field full"><label for="sale-product">Produto *</label><select id="sale-product" name="productId" required>${productsWithStock.map(product => `<option value="${escapeHtml(product.id)}" data-stock="${availableServings(product)}" data-price="${product.price}" ${product.id === selectedProduct.id ? "selected" : ""}>${escapeHtml(product.name)} · ${availableServings(product)} ${escapeHtml(product.recipe ? (product.unit || "copos") : (product.unit || "un."))} disponíveis</option>`).join("")}</select></div>
+            <div class="field"><label for="sale-quantity">Quantidade vendida *</label><input id="sale-quantity" name="quantity" type="number" min="1" step="1" value="1" required></div>
+            <div class="field"><label for="sale-price">Preço por unidade (R$) *</label><input id="sale-price" name="price" inputmode="decimal" value="${selectedProduct.price.toFixed(2).replace(".", ",")}" required></div>
+            <div class="field full"><label for="sale-date">Data da venda *</label><input id="sale-date" name="date" type="date" value="${today}" required></div>
+          </div>`, data => {
+          const product = state.products.find(item => item.id === data.get("productId"));
+          const quantity = Number(data.get("quantity"));
+          const unitPrice = parseAmount(data.get("price"));
+          const date = String(data.get("date") || "");
+          if (!product) return "Selecione um produto válido.";
+          if (!Number.isInteger(quantity) || quantity <= 0) return "Informe uma quantidade inteira maior que zero.";
+          if (quantity > availableServings(product)) return `Estoque insuficiente para essa venda. Há ${availableServings(product)} unidade(s) disponível(is).`;
+          if (!Number.isFinite(unitPrice) || unitPrice < 0) return "Informe um preço de venda válido.";
+          if (!date) return "Informe a data da venda.";
+          const requirements = product.recipe ? recipeRequirements(product, quantity) : [{ product, quantity }];
+          if (!requirements.length) return "A receita não tem ingredientes disponíveis para consumo.";
+          const snapshots = new Map(requirements.map(item => [
+            item.product.id,
+            { stock: item.product.stock, stockLots: item.product.stockLots.map(lot => ({ ...lot })) }
+          ]));
+          let costBreakdown = [];
+          try {
+            for (const requirement of requirements) {
+              costBreakdown.push(...consumeStockLots(requirement.product, requirement.quantity));
+            }
+          } catch (error) {
+            for (const requirement of requirements) {
+              const snapshot = snapshots.get(requirement.product.id);
+              requirement.product.stock = snapshot.stock;
+              requirement.product.stockLots = snapshot.stockLots;
+            }
+            console.error("Não foi possível calcular o custo dos lotes vendidos.", error);
+            return error instanceof Error ? error.message : "Não foi possível calcular o custo desta venda.";
+          }
+          const costTotal = costBreakdown.reduce((sum, lot) => sum + lot.quantity * lot.unitCost, 0);
+          const sale = {
+            id: newId(),
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit || (product.recipe ? "copo" : "un."),
+            quantity,
+            unitPrice,
+            unitCost: costTotal / quantity,
+            costTotal,
+            recipeSnapshot: product.recipe ? {
+              servingVolumeMl: product.recipe.servingVolumeMl,
+              components: product.recipe.components.map(component => ({ ...component }))
+            } : null,
+            costBreakdown,
+            date,
+            createdAt: localDateTimeString(new Date())
+          };
+          state.sales.push(sale);
+          if (!saveState()) {
+            for (const requirement of requirements) {
+              const snapshot = snapshots.get(requirement.product.id);
+              requirement.product.stock = snapshot.stock;
+              requirement.product.stockLots = snapshot.stockLots;
+            }
+            state.sales = state.sales.filter(item => item.id !== sale.id);
+            return "Não foi possível salvar a venda. Tente novamente.";
+          }
+          render();
+          showToast("Venda registrada e estoque atualizado.");
+          return "";
+        });
+        const productSelect = document.getElementById("sale-product");
+        productSelect.addEventListener("change", () => {
+          const option = productSelect.selectedOptions[0];
+          document.getElementById("sale-price").value = Number(option.dataset.price).toFixed(2).replace(".", ",");
+        });
+      }
+
+      function deleteProduct(product) {
+        const recipeUsers = state.products.filter(item =>
+          item.id !== product.id && item.recipe && item.recipe.components.some(component => component.productId === product.id)
+        );
+        if (recipeUsers.length) {
+          showToast(`Este produto é ingrediente de ${recipeUsers.map(item => item.name).join(", ")}. Remova-o da receita antes de excluir.`);
+          return;
+        }
+        const hasSales = state.sales.some(sale => sale.productId === product.id);
+        const detail = hasSales ? "O histórico das vendas será mantido." : "Esta ação não pode ser desfeita.";
+        if (!window.confirm(`Excluir "${product.name}" do estoque? ${detail}`)) return;
+        const oldProducts = state.products;
+        state.products = state.products.filter(item => item.id !== product.id);
+        if (!saveState()) {
+          state.products = oldProducts;
+          return;
+        }
+        render();
+        showToast("Produto removido.");
+      }
+
+      function deleteSale(sale) {
+        if (!window.confirm(`Desfazer esta venda de ${sale.quantity} unidade(s)? O estoque será reposto.`)) return;
+        const fallbackProduct = state.products.find(item => item.id === sale.productId);
+        const costBreakdown = Array.isArray(sale.costBreakdown) ? sale.costBreakdown : [];
+        const affectedProducts = new Map();
+        const productIds = costBreakdown.length
+          ? [...new Set(costBreakdown.map(item => item.productId || sale.productId))]
+          : fallbackProduct ? [fallbackProduct.id] : [];
+        for (const productId of productIds) {
+          const ingredient = state.products.find(item => item.id === productId);
+          if (ingredient) affectedProducts.set(ingredient.id, {
+            product: ingredient,
+            stock: ingredient.stock,
+            stockLots: ingredient.stockLots.map(lot => ({ ...lot }))
+          });
+        }
+        if (costBreakdown.length) {
+          restoreStockBreakdown(costBreakdown, sale);
+        } else if (fallbackProduct) {
+          const unitCost = Number.isFinite(Number(sale.unitCost)) ? Number(sale.unitCost) : fallbackProduct.cost;
+          fallbackProduct.stockLots.push({ id: newId(), quantity: sale.quantity, unitCost, createdAt: sale.createdAt || "" });
+          fallbackProduct.stock = roundQuantity(fallbackProduct.stock + sale.quantity);
+        }
+        state.sales = state.sales.filter(item => item.id !== sale.id);
+        if (!saveState()) {
+          state.sales.push(sale);
+          for (const snapshot of affectedProducts.values()) {
+            snapshot.product.stock = snapshot.stock;
+            snapshot.product.stockLots = snapshot.stockLots;
+          }
+          return;
+        }
+        render();
+        showToast("Venda desfeita e estoque reposto.");
+      }
+
+      function deleteExpense(expense) {
+        if (!window.confirm(`Excluir a despesa "${expense.description}"?`)) return;
+        const oldExpenses = state.expenses;
+        state.expenses = state.expenses.filter(item => item.id !== expense.id);
+        if (!saveState()) {
+          state.expenses = oldExpenses;
+          return;
+        }
+        render();
+        showToast("Despesa removida.");
+      }
+
+      document.querySelectorAll(".nav-button").forEach(button => {
+        button.addEventListener("click", () => requestScreen(button.dataset.screen));
+      });
+
+      document.addEventListener("click", event => {
+        const button = event.target.closest("[data-action]");
+        if (!button) return;
+        const { action, id } = button.dataset;
+        if (action === "close-modal") closeModal();
+        if (action === "logout") logout();
+        if (action === "export-month") exportMonthlyReport();
+        if (action === "cancel-auth") document.getElementById("auth-screen").hidden = true;
+        if (action === "add-product") addProduct(null);
+        if (action === "add-sale") addSale();
+        if (action === "service-sell") addSale(id);
+        if (action === "edit-recipe") {
+          const product = state.products.find(item => item.id === id);
+          if (product) editRecipe(product);
+        }
+        if (action === "add-recipe-component") {
+          const productId = document.getElementById("recipe-components").dataset.productId;
+          const product = state.products.find(item => item.id === productId);
+          if (product) addRecipeComponentRow(product);
+        }
+        if (action === "remove-recipe-component") {
+          const componentRows = document.querySelectorAll("#recipe-components .recipe-component");
+          if (componentRows.length > 1) button.closest(".recipe-component").remove();
+          else showToast("A receita precisa ter pelo menos um ingrediente.");
+        }
+        if (action === "edit-product") {
+          const product = state.products.find(item => item.id === id);
+          if (product) addProduct(product);
+        }
+        if (action === "stock-in" || action === "stock-out") {
+          const product = state.products.find(item => item.id === id);
+          if (product) adjustStock(product, action === "stock-in" ? "in" : "out");
+        }
+        if (action === "delete-product") {
+          const product = state.products.find(item => item.id === id);
+          if (product) deleteProduct(product);
+        }
+        if (action === "delete-sale") {
+          const sale = state.sales.find(item => item.id === id);
+          if (sale) deleteSale(sale);
+        }
+        if (action === "delete-expense") {
+          const expense = state.expenses.find(item => item.id === id);
+          if (expense) deleteExpense(expense);
+        }
+      });
+
+      document.getElementById("modal-backdrop").addEventListener("click", event => {
+        if (event.target.id === "modal-backdrop") closeModal();
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeModal();
+      });
+      document.getElementById("product-search").addEventListener("input", event => {
+        searchTerm = event.target.value.trim();
+        renderInventory();
+      });
+      document.getElementById("service-search").addEventListener("input", event => {
+        serviceSearchTerm = event.target.value.trim();
+        renderService();
+      });
+      document.getElementById("month-select").addEventListener("change", event => {
+        selectedMonth = event.target.value;
+        renderFinance();
+      });
+      document.getElementById("expense-date").value = today;
+      document.getElementById("expense-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        const description = String(formData.get("description") || "").trim();
+        const amount = parseAmount(formData.get("amount"));
+        const date = String(formData.get("date") || "");
+        if (!description || !Number.isFinite(amount) || amount <= 0 || !date) {
+          showToast("Informe descrição, valor maior que zero e data para a despesa.");
+          return;
+        }
+        const expense = { id: newId(), description, amount, date };
+        state.expenses.push(expense);
+        if (!saveState()) {
+          state.expenses = state.expenses.filter(item => item.id !== expense.id);
+          return;
+        }
+        form.reset();
+        document.getElementById("expense-date").value = today;
+        render();
+        showToast("Despesa registrada.");
+      });
+      document.getElementById("security-form").addEventListener("submit", updateCredentials);
+
+      document.getElementById("reset-demo").addEventListener("click", () => {
+        if (!window.confirm("Restaurar produtos fictícios e apagar as operações feitas nesta demonstração neste navegador? O login local também será redefinido.")) return;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(demoSeedState()));
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+          localStorage.setItem(DEMO_SEED_KEY, "1");
+          window.location.reload();
+        } catch (error) {
+          console.error(error);
+          showToast("Não foi possível restaurar a demonstração.");
+        }
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
